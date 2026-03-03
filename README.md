@@ -1,4 +1,4 @@
-# Dream Institute — Main Backend (Node.js)
+# Dream Institute — Main Backend
 
 This is the primary backend server for the Dream Institute application, responsible for data persistence, authentication, and core business logic.
 
