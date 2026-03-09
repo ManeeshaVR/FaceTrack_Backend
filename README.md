@@ -1,86 +1,156 @@
-# Dream Institute — Main Backend (Node.js)
+# FaceTrack — Backend (Node.js)
 
-This is the primary backend server for the Dream Institute application, responsible for data persistence, authentication, and core business logic.
-
----
-
-## Tech Stack
-
-| Component      | Technology                 |
-|----------------|----------------------------|
-| Runtime        | Node.js                    |
-| Framework      | Express                    |
-| Database       | MongoDB (Mongoose ODM)     |
-| Authentication | JWT (JSON Web Tokens)      |
-| Validation     | Zod                        |
+This repository contains the primary backend server for the FaceTrack application. It manages data persistence, authentication, business logic, and integrates securely with the frontend portal and the Machine Learning microservice.
 
 ---
 
-## 1) Setup & Installation
+## 🚀 Tech Stack
 
-### Prerequisites
+| Component | Technology | Description |
+| :--- | :--- | :--- |
+| **Runtime** | `Node.js` (v18+) | JavaScript runtime for fast, scalable network applications. |
+| **Framework** | `Express.js` | Fast, unopinionated, minimalist web framework for Node. |
+| **Database** | `MongoDB` | NoSQL document database used for highly flexible data storage. |
+| **ODM** | `Mongoose` | Elegant MongoDB object modeling for validation and relationships. |
+| **Authentication** | `JWT` & `bcryptjs` | JSON Web Tokens for stateless sessions; bcrypt for password hashing. |
+| **Validation** | `Zod` | TypeScript-first schema declaration and data validation. |
+| **Mailing** | `Nodemailer` | Module to send configuration and system emails. |
+
+---
+
+## 🛠 Setup & Installation
+
+### 1. Prerequisites
 - Node.js (v18 or higher)
-- MongoDB (Running locally or on Atlas)
+- MongoDB Database (Running locally at `mongodb://127.0.0.1:27017` or MongoDB Atlas)
 
-### Local Environment
-1.  **Clone the repository** (if you haven't already).
-2.  **Configure Environment Variables**:
-    ```bash
-    cp .env.example .env
-    ```
-    Edit `.env` and set your `MONGODB_URI` and `JWT_SECRET`.
-3.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
-4.  **Run in Development mode**:
-    ```bash
-    npm run dev
-    ```
-    The server will start on `http://localhost:4000`.
+### 2. Local Environment Setup
+Navigate to the `backend` folder and follow these steps:
 
----
+```bash
+# 1. Install dependencies
+npm install
 
-## 2) Authentication Flow
+# 2. Configure Environment Variables
+cp .env.example .env
+```
 
-### Create Super Admin
-This is a one-time setup endpoint that does not require an existing token.
-- `POST /api/auth/super-admin`
-- Body: `{ "username": "admin@demo.com", "password": "Admin123" }`
+### 3. Environment Variables (`.env`)
+Make sure your `.env` contains the required properties:
+```env
+PORT=4000
+MONGO_URI=mongodb://127.0.0.1:27017/facetrack
+JWT_SECRET=your_super_secret_jwt_key
+JWT_EXPIRES_IN=7d
+CORS_ORIGIN=http://localhost:5173
 
-### Login
-- `POST /api/auth/login`
-- Returns a JWT token and user profile.
+# Email Configuration (Optional for Mailing)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+EMAIL_FROM=your-email@gmail.com
+```
 
-### Teacher/Student Signup
-Teachers and Students can only sign up if their email has already been added to the system by an Admin.
-- `POST /api/auth/signup/teacher`
-- `POST /api/auth/signup/student`
+### 4. Running the Server
 
----
+```bash
+# Development (Hot-reloading via nodemon)
+npm run dev
 
-## 3) Main API Modules
+# Production
+npm run start
 
-All protected routes require an `Authorization: Bearer <token>` header.
+# Database Seeding (Optional: seeds initial data)
+npm run seed
+```
 
-| Module | Base Path | Description |
-|--------|-----------|-------------|
-| **Students** | `/api/students` | CRUD for student records and metadata. |
-| **Teachers** | `/api/teachers` | CRUD for teacher profiles, experience, and education. |
-| **Classes** | `/api/classes` | Define subjects and class levels. |
-| **Schedules** | `/api/class-schedules` | Set days and times for specific classes. |
-| **Enrollments** | `/api/enrollments` | Manage which students are in which classes. |
-| **Payments** | `/api/payments` | Record tuition fees and check arrears. |
-| **Attendance** | `/api/attendance` | Record and query attendance logs. |
-| **Scores** | `/api/scores` | Record term marks (G9-11) for students. |
-| **Public** | `/api/guest` | Publicly accessible class and teacher info. |
+Server will run at `http://localhost:4000`.
 
 ---
 
-## 4) Project Structure
+## 🗄️ Database Models (Mongoose Schemas)
 
-- `src/models/`: Mongoose schemas for all entities.
-- `src/routes/`: Express route definitions.
-- `src/controllers/`: Business logic implementations.
-- `src/utils/`: Middleware (auth, validation) and helpers.
-- `src/server.js`: Entrance point and server configuration.
+The system relies on a robust relational-like structure using MongoDB `ObjectIds`.
+
+1. **User**: Handles authentication credentials, JWT validation, and RBAC roles (`super_admin`, `admin`, `teacher`, `student`, `guest`).
+2. **Student**: Stores student profile, Parent contact info, and facial `embeddings` (an array of 128-d vectors generated by the ML server). Custom `StudentId` auto-increments (e.g., STU-001).
+3. **Teacher**: Stores teacher profile, education history, years of experience, and contact details. Custom `TeacherId` (e.g., TCH-001).
+4. **Subject**: Base academic subjects (Mathematics, Science, English, etc.).
+5. **Class**: Ties a `Subject` and a Grade Level (e.g., Grade 10 Mathematics) with specific tuition fees.
+6. **ClassSchedule**: Defines the Day of the Week, Start Time, End Time, and assigns a specific Teacher to a `Class`.
+7. **Enrollment**: Many-to-Many join table linking a `Student` to a specific `Class`.
+8. **Attendance**: Logs student attendance for a specific `ClassSchedule`. Tracks whether the method was `face` or `manual`, records `isLive` (anti-spoofing rating), and the `similarity` score.
+9. **Score**: Stores academic term marks required for ML predictions (Grade 9 to Grade 11).
+10. **Payment**: Financial ledger tracking student fee payments per enrollment, noting month and year.
+11. **Counter**: Utility model used to generate sequential, human-readable IDs (`STU-001`, `TCH-001`).
+
+---
+
+## 📡 API Endpoints
+
+All protected API endpoints require an `Authorization: Bearer <JWT_TOKEN>` header.
+
+### 🔒 Auth (`/api/auth`)
+- `POST /super-admin` — Creates the initial admin account (No token required).
+- `POST /login` — Authenticates a user and returns a JWT profile.
+- `POST /signup/teacher` — Allows a teacher to register if their email exists in the system.
+- `POST /signup/student` — Allows a student to construct an account if preregistered.
+
+### 👨‍🎓 Students (`/api/students`)
+- `GET /` — Fetch all students (supports filtering).
+- `GET /count` — Get total student statistics.
+- `GET /id/:studentId` — Fetch a student by Custom ID (STU-XXX).
+- `POST /` — Register a new student profile (Admin only).
+- `PUT /:id` — Update student details.
+- `PUT /:id/embeddings` — Store base64 128-d facial embeddings from the ML server.
+- `DELETE /:id` — Delete a student.
+
+### 👨‍🏫 Teachers (`/api/teachers`)
+- `GET /` — Fetch all teachers.
+- `GET /user/:username` — Get teacher details by associated user email.
+- `GET /teaching-classes/:teacherId` — Fetch classes specifically assigned to a teacher.
+- `POST /`, `PUT /:id`, `DELETE /:id` — Admin CRUD capabilities.
+
+### 📚 Academics & Scheduling
+- **Subjects** (`/api/subjects`): Standard CRUD for subjects.
+- **Classes** (`/api/classes`):
+    - `GET /list/full` — Fetch complete class taxonomy.
+    - CRUD operations.
+- **Schedules** (`/api/class-schedules`):
+    - `GET /teacher/:teacherId` — Get schedule timeline for a specific teacher.
+    - standard CRUD operations linking time gaps and classes.
+
+### 📝 Operations (Enrollments & Attendance)
+- **Enrollments** (`/api/enrollments`):
+    - `GET /student/:studentId` — Get all classes a student is enrolled in.
+    - `GET /class/:classId` — Get roster of students in a class.
+- **Attendance** (`/api/attendance`):
+    - `GET /student/:studentId` — Historical attendance for one student.
+    - `GET /schedule/:scheduleId` — Attendance records per master class.
+    - `POST /` — Used by ML/React to log successful Face Matches.
+    - `DELETE /:id` — Revoke a logged attendance.
+
+### 📊 System & Finance
+- **Scores** (`/api/scores`):
+    - `GET /student/:studentId` — Fetch the 9 historical terms.
+    - `POST /` — Add/Update scores.
+- **Payments** (`/api/payments`):
+    - `GET /student/:studentId` — Fetch fee payments.
+- **Dashboard** (`/api/dashboard`):
+    - `GET /stats` — Master counts, financial overviews.
+    - `GET /upcoming-classes` — Time-filtered class schedules for today.
+    - `GET /recent-activities` — Action logging.
+- **Settings** (`/api/settings`):
+    - App configurations and `/email/test` routes.
+
+---
+
+## 👮 Error Handling & Middlewares
+
+- `errorHandler.js`: Intercepts validation faults (Zod), duplicate keys (MongoDB), or JWT expiries and normalizes the HTTP JSON response format globally.
+- `express-async-errors`: Allows writing clean asynchronous controllers without wrapping every single route in an explicit `try/catch` block.
+- `helmet` & `cors`: Used to secure HTTP headers from XSS and control cross-origin requests securely.
+
+---
